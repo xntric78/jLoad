@@ -1,0 +1,17 @@
+*.dll
+*.exe
+.DS_Store
+example.tf
+terraform.tfplan
+terraform.tfstate
+/pkg/
+*.backup
+./*.tfstate
+.terraform/
+*.bak
+*~
+.*.swp
+.idea
+*.iml
+*.test
+*.iml
