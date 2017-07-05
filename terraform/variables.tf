@@ -19,6 +19,18 @@ variable "jmeter_keypair" {
   default = "cpieper"
 }
 
+variable "jmeter_keypair_pem" {
+  default = "/Users/cpieper/.ssh/cpieper.pem"
+}
+
 variable "environment" {
   default = "JMeter Cloud Infrastructure"
+}
+
+variable "client_name" {
+  default = "development"
+}
+
+variable "test_name" {
+  default = "working"
 }

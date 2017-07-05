@@ -5,14 +5,14 @@
 
 function install_jmeter_plugins() {
     echo "Installing plugins..."
-    wget -q -O ~/JMeterPlugins-Extras.jar https://s3.amazonaws.com/jmeter-ec2/JMeterPlugins-Extras.jar
-    wget -q -O ~/JMeterPlugins-Standard.jar https://s3.amazonaws.com/jmeter-ec2/JMeterPlugins-Standard.jar
-    mv ~/JMeterPlugins*.jar "$JMETER_HOME$JMETER_VERSION/lib/ext/"
+    wget -q -O $TEMP_DIR/JMeterPlugins-Extras.jar https://s3.amazonaws.com/jmeter-ec2/JMeterPlugins-Extras.jar
+    wget -q -O $TEMP_DIR/JMeterPlugins-Standard.jar https://s3.amazonaws.com/jmeter-ec2/JMeterPlugins-Standard.jar
+    mv $TEMP_DIR/JMeterPlugins*.jar "$JMETER_HOME$JMETER_VERSION/lib/ext/"
 
     echo "Installing JMeter Plugins Manager"
-    wget -q -O - https://jmeter-plugins.org/get/ > ~/jmeter-plugins-manager.jar
-    mv ~/jmeter-plugins-manager.jar "$JMETER_HOME$JMETER_VERSION/lib/ext/"
-    wget -q -O ~/cmdrunner-2.0.jar https://repo1.maven.org/maven2/kg/apc/cmdrunner/2.0/cmdrunner-2.0.jar
+    wget -q -O - https://jmeter-plugins.org/get/ > $TEMP_DIR/jmeter-plugins-manager.jar
+    mv $TEMP_DIR/jmeter-plugins-manager.jar "$JMETER_HOME$JMETER_VERSION/lib/ext/"
+    wget -q -O $TEMP_DIR/cmdrunner-2.0.jar https://repo1.maven.org/maven2/kg/apc/cmdrunner/2.0/cmdrunner-2.0.jar
     mv cmdrunner-2.0.jar "$JMETER_HOME$JMETER_VERSION/lib/"
 
     java -cp "$JMETER_HOME$JMETER_VERSION/lib/ext/jmeter-plugins-manager.jar" org.jmeterplugins.repository.PluginManagerCMDInstaller
@@ -23,7 +23,7 @@ function install_jmeter_plugins() {
 }
 
 function install_java() {
-    echo "Updating yum..."
+    #echo "Updating yum..."
     #yum-config-manager --enable epel
     #yum update -y
 
@@ -48,31 +48,32 @@ function install_jmeter() {
     if [ $(curl -sI https://s3.amazonaws.com/jmeter-ec2/$JMETER_VERSION.tgz | grep -c "403 Forbidden") -eq "0" ] ; then
         # We have a copy on S3 so use that
         echo "Downloading jmeter from S3..."
-        wget -q -O ~/$JMETER_VERSION.tgz https://s3.amazonaws.com/jmeter-ec2/$JMETER_VERSION.tgz
+        wget -q -O $TEMP_DIR/$JMETER_VERSION.tgz https://s3.amazonaws.com/jmeter-ec2/$JMETER_VERSION.tgz
     elif [ $(echo $(curl -s 'http://www.apache.org/dist/jmeter/binaries/') | grep -c "$JMETER_VERSION") -gt "0" ] ; then
         # Nothing found on S3 but this is the current version of jmeter so use the preferred mirror to download
         echo "downloading jmeter from a Mirror..."
-        wget -q -O ~/$JMETER_VERSION.tgz "http://www.apache.org/dyn/closer.cgi?filename=jmeter/binaries/$JMETER_VERSION.tgz&action=download"
+        wget -q -O $TEMP_DIR/$JMETER_VERSION.tgz "http://www.apache.org/dyn/closer.cgi?filename=jmeter/binaries/$JMETER_VERSION.tgz&action=download"
     else
         # Fall back to the archive server
         echo "Downloading jmeter from Apache Archive..."
-        wget -q -O ~/$JMETER_VERSION.tgz http://archive.apache.org/dist/jmeter/binaries/$JMETER_VERSION.tgz
+        wget -q -O $TEMP_DIR/$JMETER_VERSION.tgz http://archive.apache.org/dist/jmeter/binaries/$JMETER_VERSION.tgz
     fi
     # Untar downloaded file
     echo "Unpacking jmeter..."
-    tar -xzf ~/$JMETER_VERSION.tgz -C $JMETER_HOME
+    tar -xzf "$TEMP_DIR/$JMETER_VERSION.tgz -C $JMETER_HOME"
     # install jmeter-plugins [http://code.google.com/p/jmeter-plugins/]
-    install_jmeter_plugins
     echo "Jmeter installed"
 
+    install_jmeter_plugins
     #"ln -s $JMETER_HOME$JMETER_VERSION/ $JMETER_HOMEjmeter"
 }
 
 JMETER_VERSION="apache-jmeter-3.2"
 JMETER_HOME=/opt/
-cd ~
+TEMP_DIR=/tmp
 
-# Java
+[ ! -d $TEMP_DIR ] && mkdir -p $TEMP_DIR
+cd $TEMP_DIR
 
 install_java
 install_jmeter

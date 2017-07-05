@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "us-east-1"
+  region = "${var.aws_region}"
 }
 
 module "vpc" {
@@ -15,7 +15,7 @@ module "vpc" {
 
   enable_nat_gateway = "false"
 
-  azs = ["us-east-1c"]
+  azs = ["${split(",", var.availability_zones)}"]
 
   tags {
     "Terraform"   = "true"
@@ -42,42 +42,44 @@ resource "aws_instance" "jmeter-master-instance" {
 
   associate_public_ip_address = "true"
 
-  subnet_id = "${element(module.vpc.public_subnets, 0)}"
+  count = "${length(${var.availability_zones})}"
+
+  subnet_id = "${element(module.vpc.public_subnets.*.id, count.index)}"
 
   security_groups = ["${module.vpc.default_security_group_id}"]
 
   tags {
-    Name = "jmeter-master"
+    Name      = "jmeter-master"
+    HostID    = "${count.index}"
+    HostCount = "${length(${var.availability_zones})}"
+    Client    = "${var.client_name}"
+    TestName  = "${var.test_name}"
   }
 
   connection {
     user        = "ec2-user"
-    private_key = "${file("/Users/cpieper/.ssh/cpieper.pem")}"
+    private_key = "${file("${var.jmeter_keypair_pem}")}"
   }
 
   provisioner "file" {
-    source      = "verify.sh"
-    destination = "/tmp/verify.sh"
+    source      = "../jmx_pkg/"
+    destination = "/home/ec2-user"
   }
 
   provisioner "remote-exec" {
     inline = [
-      "sudo chmod +x /tmp/verify.sh",
-      "sudo /tmp/verify.sh > /tmp/verify.out",
+      "chmod +x bin/*.sh",
+      "sudo bin/setup.sh > logs/setup.log",
       "sudo chown -R ec2-user:ec2-user /opt/",
+      "ln -s /opt/apache-jmeter-3.2/ /opt/jmeter",
+      "echo 'export PATH=$PATH:/opt/jmeter/bin:$HOME/bin' >> ~/.bash_profile",
     ]
-  }
-
-  provisioner "file" {
-    source      = "package.zip"
-    destination = "/home/ec2-user/package.zip"
   }
 
   provisioner "remote-exec" {
     inline = [
       "ln -s /opt/apache-jmeter-3.2/ /opt/jmeter",
       "echo 'export PATH=$PATH:/opt/jmeter/bin' >> ~/.bash_profile",
-      "unzip package.zip",
     ]
   }
 }
@@ -107,8 +109,8 @@ resource "aws_iam_role" "jmeter_master_iam_role" {
 EOF
 }
 
-data "template_file" "jload_s3-rw" {
-  template = "${file("policy.s3-rw.tpl")}"
+data "template_file" "jload_iam_policy" {
+  template = "${file("jmeter_ec2_iam_json.tpl")}"
 
   vars {
     bucket_name = "jload"
@@ -119,5 +121,5 @@ resource "aws_iam_role_policy" "jmeter_master_s3_policy" {
   name = "jmeter_master_s3_policy"
   role = "${aws_iam_role.jmeter_master_iam_role.id}"
 
-  policy = "${data.template_file.jload_s3-rw.rendered}"
+  policy = "${data.template_file.jload_iam_policy.rendered}"
 }
