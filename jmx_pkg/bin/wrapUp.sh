@@ -1,4 +1,4 @@
 #!/bin/bash
+TODAY=$(date +"%Y-%m-%d_%H%M")
 
-tar cvzf /tmp/dev_package.tgz /home/ec2-user
-mv /tmp/dev_package.tgz /home/ec2-user
+aws s3 sync . s3://jload/results/$Client/$Test/$TODAY/$HostID_$HostCount

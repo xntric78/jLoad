@@ -2,20 +2,22 @@ provider "aws" {
   region = "${var.aws_region}"
 }
 
+data "aws_availability_zones" "available" {}
+
 module "vpc" {
   source = "github.com/terraform-community-modules/tf_aws_vpc"
 
   name = "jmeter-vpc"
 
   cidr           = "10.0.0.0/16"
-  public_subnets = ["10.0.101.0/24"]
+  public_subnets = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24", "10.0.104.0/24"]
 
   enable_dns_hostnames = "true"
   enable_dns_support   = "true"
 
   enable_nat_gateway = "false"
 
-  azs = ["${split(",", var.availability_zones)}"]
+  azs = "${data.aws_availability_zones.available.names}"
 
   tags {
     "Terraform"   = "true"
@@ -33,25 +35,32 @@ resource "aws_security_group_rule" "allow_all" {
   security_group_id = "${module.vpc.default_security_group_id}"
 }
 
+resource "aws_key_pair" "deployer" {
+  key_name   = "deployer-key"
+  public_key = "${file("${var.jmeter_keypair_pub}")}"
+}
+
 resource "aws_instance" "jmeter-master-instance" {
-  ami           = "${var.jmeter_ami}"
+  ami           = "${data.aws_ami.jmeter_ami.id}"
   instance_type = "${var.jmeter_instance_type}"
 
-  key_name             = "${var.jmeter_keypair}"
+  key_name             = "${aws_key_pair.deployer.key_name}"
   iam_instance_profile = "${aws_iam_instance_profile.jmeter_master_iam_profile.name}"
 
   associate_public_ip_address = "true"
 
-  count = "${length(${var.availability_zones})}"
+  count = "${var.jmeter_num_instances}"
 
-  subnet_id = "${element(module.vpc.public_subnets.*.id, count.index)}"
+  subnet_id = "${element(module.vpc.public_subnets, count.index)}"
 
   security_groups = ["${module.vpc.default_security_group_id}"]
+
+  user_data = "${element(data.template_file.userdata.*.rendered, count.index)}"
 
   tags {
     Name      = "jmeter-master"
     HostID    = "${count.index}"
-    HostCount = "${length(${var.availability_zones})}"
+    HostCount = "${var.jmeter_num_instances}"
     Client    = "${var.client_name}"
     TestName  = "${var.test_name}"
   }
@@ -78,8 +87,7 @@ resource "aws_instance" "jmeter-master-instance" {
 
   provisioner "remote-exec" {
     inline = [
-      "ln -s /opt/apache-jmeter-3.2/ /opt/jmeter",
-      "echo 'export PATH=$PATH:/opt/jmeter/bin' >> ~/.bash_profile",
+      "at now + 2 minutes < bin/execTest.sh",
     ]
   }
 }
@@ -100,7 +108,8 @@ resource "aws_iam_role" "jmeter_master_iam_role" {
     {
       "Effect": "Allow",
       "Principal": {
-        "Service": "ec2.amazonaws.com"
+        "Service": "ec2.amazonaws.com",
+        "Service": "ssm.amazonaws.com"
       },
       "Action": "sts:AssumeRole"
     }
@@ -114,6 +123,19 @@ data "template_file" "jload_iam_policy" {
 
   vars {
     bucket_name = "jload"
+  }
+}
+
+data "template_file" "userdata" {
+  count = "${var.jmeter_num_instances}"
+
+  template = "${file("user_data.sh")}"
+
+  vars {
+    HostID    = "${count.index}"
+    HostCount = "${var.jmeter_num_instances}"
+    Client    = "${var.client_name}"
+    TestName  = "${var.test_name}"
   }
 }
 

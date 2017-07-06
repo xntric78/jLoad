@@ -36,7 +36,7 @@ function install_java() {
     echo "Java installed"
 }
 
-function install_jmeter() {
+function download_jmeter() {
     # ------------------------------------------------
     #      Decide where to download jmeter from
     #
@@ -58,9 +58,13 @@ function install_jmeter() {
         echo "Downloading jmeter from Apache Archive..."
         wget -q -O $TEMP_DIR/$JMETER_VERSION.tgz http://archive.apache.org/dist/jmeter/binaries/$JMETER_VERSION.tgz
     fi
+}
+
+function install_jmeter() {
+    [ ! -f $TEMP_DIR/$JMETER_VERSION.tgz ] && download_jmeter
     # Untar downloaded file
     echo "Unpacking jmeter..."
-    tar -xzf "$TEMP_DIR/$JMETER_VERSION.tgz -C $JMETER_HOME"
+    tar -xzf $TEMP_DIR/$JMETER_VERSION.tgz -C $JMETER_HOME
     # install jmeter-plugins [http://code.google.com/p/jmeter-plugins/]
     echo "Jmeter installed"
 

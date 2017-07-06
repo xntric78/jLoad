@@ -1,9 +1,16 @@
 variable "aws_region" {
-  default = "us-east-1"
+  default = "us-east-2"
 }
 
-variable "availability_zones" {
-  default = "us-east-1b,us-east-1a"
+variable "jmeter_num_instances" {
+  default = 6
+}
+
+variable "jmeter_asset_tags" {
+  description = "Tags to set on all created resources to enable reporting within AWS"
+  type        = "map"
+
+  default = {}
 }
 
 variable "jmeter_instance_type" {
@@ -17,6 +24,10 @@ variable "jmeter_ami" {
 
 variable "jmeter_keypair" {
   default = "cpieper"
+}
+
+variable "jmeter_keypair_pub" {
+  default = "/Users/cpieper/.ssh/cpieper.pub"
 }
 
 variable "jmeter_keypair_pem" {
