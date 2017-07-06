@@ -1,4 +1,6 @@
 #!/bin/bash
 TODAY=$(date +"%Y-%m-%d_%H%M")
+HOST=$(hostname)
 
-aws s3 sync . s3://jload/results/$Client/$Test/$TODAY/$HostID_$HostCount
+cd /home/ec2-user
+aws s3 sync . "s3://jload/results/$Client/$TestName/$TODAY/$HOST"
