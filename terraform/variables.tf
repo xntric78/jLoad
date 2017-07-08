@@ -2,9 +2,7 @@ variable "aws_region" {
   default = "us-east-2"
 }
 
-variable "jmeter_num_instances" {
-  default = 6
-}
+variable "jmeter_num_instances" {}
 
 variable "jmeter_asset_tags" {
   description = "Tags to set on all created resources to enable reporting within AWS"

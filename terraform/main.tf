@@ -84,12 +84,6 @@ resource "aws_instance" "jmeter-master-instance" {
       "echo 'export PATH=$PATH:/opt/jmeter/bin:$HOME/bin' >> ~/.bash_profile",
     ]
   }
-
-  provisioner "remote-exec" {
-    inline = [
-      "at now + 2 minutes < bin/execTest.sh",
-    ]
-  }
 }
 
 resource "aws_iam_instance_profile" "jmeter_master_iam_profile" {

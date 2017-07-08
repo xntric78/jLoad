@@ -27,7 +27,19 @@
         "ssm:*",
         "ec2messages:*"
     ],
-    "Resource": "*"
-   }
+    "Resource": ["*"]
+  },
+  {
+    "Effect": "Allow",
+    "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogStreams"
+    ],
+    "Resource": [
+        "arn:aws:logs:*:*:*"
+    ]
+  }
   ]
 }
