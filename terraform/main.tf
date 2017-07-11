@@ -10,7 +10,7 @@ module "vpc" {
   name = "jmeter-vpc"
 
   cidr           = "10.0.0.0/16"
-  public_subnets = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24", "10.0.104.0/24"]
+  public_subnets = ["${slice(var.pub_sub_nets, 0, var.jmeter_num_instances > length(var.pub_sub_nets) ? length(var.pub_sub_nets) : var.jmeter_num_instances)}"]
 
   enable_dns_hostnames = "true"
   enable_dns_support   = "true"
@@ -130,6 +130,7 @@ data "template_file" "userdata" {
     HostCount = "${var.jmeter_num_instances}"
     Client    = "${var.client_name}"
     TestName  = "${var.test_name}"
+    awsRegion = "${var.aws_region}"
   }
 }
 
