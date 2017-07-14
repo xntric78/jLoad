@@ -57,6 +57,10 @@ resource "aws_instance" "jmeter-master-instance" {
 
   user_data = "${element(data.template_file.userdata.*.rendered, count.index)}"
 
+  lifecycle {
+    create_before_destroy = true
+  }
+
   tags {
     Name      = "jmeter-master"
     HostID    = "${count.index}"
@@ -71,8 +75,21 @@ resource "aws_instance" "jmeter-master-instance" {
   }
 
   provisioner "file" {
-    source      = "../jmx_pkg/"
+    source      = "${var.source_folder}/"
     destination = "/home/ec2-user"
+  }
+
+  provisioner "file" {
+    content = <<EOF
+#!/bin/bash
+
+export Client="${var.client_name}"
+export TestName="${var.test_name}"
+export HostID="${count.index}"
+export HostCount="${var.jmeter_num_instances}"
+EOF
+
+    destination = "/home/ec2-user/bin/test_vars.sh"
   }
 
   provisioner "remote-exec" {
@@ -113,23 +130,19 @@ EOF
 }
 
 data "template_file" "jload_iam_policy" {
-  template = "${file("jmeter_ec2_iam_json.tpl")}"
+  template = "${file("${path.module}/templates/jmeter_ec2_iam_json.tpl")}"
 
   vars {
-    bucket_name = "jload"
+    bucket_name = "${var.bucket_name}"
   }
 }
 
 data "template_file" "userdata" {
   count = "${var.jmeter_num_instances}"
 
-  template = "${file("user_data.sh")}"
+  template = "${file("${path.module}/templates/user_data.sh.tpl")}"
 
   vars {
-    HostID    = "${count.index}"
-    HostCount = "${var.jmeter_num_instances}"
-    Client    = "${var.client_name}"
-    TestName  = "${var.test_name}"
     awsRegion = "${var.aws_region}"
   }
 }
@@ -139,4 +152,70 @@ resource "aws_iam_role_policy" "jmeter_master_s3_policy" {
   role = "${aws_iam_role.jmeter_master_iam_role.id}"
 
   policy = "${data.template_file.jload_iam_policy.rendered}"
+}
+
+resource "aws_ssm_document" "jmeter_exec_test_doc" {
+  name          = "JLOAD-ExecuteJMeterTest"
+  document_type = "Command"
+
+  content = <<DOC
+  {
+     "schemaVersion":"2.0",
+     "description":"Launchs JMeter test deployed by jLoad.",
+     "parameters":{
+        "testid":{
+           "type":"String",
+           "description":"(Required) specific test id, defaults to datetime of test execution (YYYYMMDD_HHMM)."
+        }
+     },
+     "mainSteps":[
+        {
+           "action":"aws:runShellScript",
+           "name":"runShellScript",
+           "inputs":{
+              "runCommand":
+              [
+                  "export TEST_ID=\"{{testid}}\"",
+                  "/home/ec2-user/bin/execTest.sh"
+              ]
+           }
+        }
+     ]
+  }
+DOC
+}
+
+data "template_file" "ssm_doc_run" {
+  template = "${file("${path.module}/templates/ssm_sendcmd_skeletion.json.tpl")}"
+
+  vars {
+    instance_ids_json = "${jsonencode(aws_instance.jmeter-master-instance.*.id)}"
+    ssm_document_name = "${aws_ssm_document.jmeter_exec_test_doc.name}"
+  }
+}
+
+resource "local_file" "ssm_send_cmd" {
+  filename = "${path.cwd}/ssm_doc_exec_jmtr.json"
+  content  = "${data.template_file.ssm_doc_run.rendered}"
+}
+
+resource "local_file" "exec_test_script" {
+  filename = "${path.cwd}/execTest.sh"
+
+  content = <<BASH
+#!/bin/bash -xv
+
+set -e
+TEST_ID=$(date +"%Y%m%d_%H%M")
+tempfile=$(mktemp "/tmp/ssmExecTest.XXXXXX")
+$(jq ".Parameters.testid = [\"$TEST_ID\"]" ssm_doc_exec_jmtr.json > $tempfile)
+
+CMD_OUT=$(aws ssm send-command --cli-input-json "file://$tempfile" --region ${var.aws_region})
+
+COMMAND_ID=$(echo $CMD_OUT | jq ".Command.CommandId")
+
+printf "CommandId = %s\n" "$COMMAND_ID"
+printf "run the following command to get execution details:\n"
+printf "aws ssm list-command-invocations --command-id %s --details --region us-east-2" "$COMMAND_ID"
+BASH
 }

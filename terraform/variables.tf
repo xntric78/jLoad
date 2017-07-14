@@ -1,10 +1,6 @@
-variable "aws_region" {
-  default = "us-east-2"
-}
+variable "aws_region" {}
 
-variable "jmeter_num_instances" {
-  default = 1
-}
+variable "jmeter_num_instances" {}
 
 variable "jmeter_asset_tags" {
   description = "Tags to set on all created resources to enable reporting within AWS"
@@ -18,29 +14,19 @@ variable "jmeter_instance_type" {
   default     = "t2.medium"
 }
 
-variable "jmeter_keypair" {
-  default = "cpieper"
-}
+variable "jmeter_keypair_pub" {}
 
-variable "jmeter_keypair_pub" {
-  default = "/Users/cpieper/.ssh/cpieper.pub"
-}
+variable "jmeter_keypair_pem" {}
 
-variable "jmeter_keypair_pem" {
-  default = "/Users/cpieper/.ssh/cpieper.pem"
-}
+variable "bucket_name" {}
 
-variable "environment" {
-  default = "JMeter Cloud Infrastructure"
-}
+variable "source_folder" {}
 
-variable "client_name" {
-  default = "development"
-}
+variable "environment" {}
 
-variable "test_name" {
-  default = "working"
-}
+variable "client_name" {}
+
+variable "test_name" {}
 
 variable "pub_sub_nets" {
   default = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24", "10.0.104.0/24", "10.0.105.0/24", "10.0.106.0/24", "10.0.107.0/24"]
